@@ -154,21 +154,6 @@ git clone https://github.com/Victor-Ahmedu/IoT-Smart-Temperature-Control-System.
 
 ---
 
-## 📸 Project Images
-
-### Hardware Setup
-
-_Add a photo here._
-
-### TFT Display
-
-_Add a photo here._
-
-### Wiring Diagram
-
-_Add your wiring diagram here._
-
----
 
 ## 🔮 Future Improvements
 
