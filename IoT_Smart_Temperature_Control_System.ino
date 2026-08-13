@@ -1,337 +1,412 @@
-/*
- * ============================================================
- * Project : IoT Smart Temperature Control System
- * Version : 1.0.0
- * Author  : Victor Ahmedu
- * Board   : NodeMCU ESP8266 (ESP-12E)
- * IDE     : Arduino IDE
- *
- * Description
- * ------------------------------------------------------------
- * This project monitors ambient temperature and humidity using
- * a DHT11 sensor and automatically controls a humidifier,
- * ventilation fan and light through relay modules.
- *
- * A 1.8-inch ST7735 TFT display provides real-time sensor
- * readings and system status.
- *
- * Features
- * ------------------------------------------------------------
- * • Temperature Monitoring
- * • Humidity Monitoring
- * • Automatic Light Control
- * • Automatic Fan Control
- * • Automatic Humidifier Control
- * • TFT Display Interface
- * • Serial Monitoring
- * • Temperature Hysteresis Control
- *
- * ============================================================
- */
-
 #include <SPI.h>
 #include <DHT.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 
-
-
-//==============================================================
-// PIN DEFINITIONS
-//==============================================================
-
+//====================================================
 // DHT11
-#define DHTPIN D4
+//====================================================
+#define DHTPIN  D4
 #define DHTTYPE DHT11
-
-// Relay Pins (Active LOW)
-#define HUMIDIFIER_RELAY D0
-#define FAN_RELAY         D6
-#define LIGHT_RELAY       D1
-
-// TFT Display
-#define TFT_CS   D8
-#define TFT_DC   D2
-#define TFT_RST  -1
-
-
-
-//==============================================================
-// CONTROL PARAMETERS
-//==============================================================
-
-// Temperature limits
-
-const float TEMP_LOW  = 28.0;
-const float TEMP_HIGH = 32.0;
-
-// Humidity limit
-
-const float HUMIDITY_THRESHOLD = 20.0;
-
-
-
-//==============================================================
-// OBJECTS
-//==============================================================
 
 DHT dht(DHTPIN, DHTTYPE);
 
-Adafruit_ST7735 tft =
-Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+
+//====================================================
+// RELAYS
+//====================================================
+
+#define HUMIDIFIER_RELAY D0
+#define LIGHT_RELAY      D1
+#define FAN_RELAY        D6
+
+// Relay module is ACTIVE LOW
+//
+// LOW  = ON
+// HIGH = OFF
 
 
+//====================================================
+// TFT
+//====================================================
 
-//==============================================================
-// GLOBAL VARIABLES
-//==============================================================
+#define TFT_CS  D8
+#define TFT_DC  D2
+#define TFT_RST -1
 
-float temperature = 0;
-float humidity = 0;
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
-bool bulbState = false;
-bool fanState = false;
+
+//====================================================
+// SYSTEM STATES
+//====================================================
+
+// true  = Bulb ON / Fan OFF
+// false = Bulb OFF / Fan ON
+
+bool bulbState = true;
+
+
+// Humidifier state
+// true  = ON
+// false = OFF
+
 bool humidifierState = false;
 
 
-
-//==============================================================
-// FUNCTION PROTOTYPES
-//==============================================================
-
-void initializeDisplay();
-
-void readSensors();
-
-void controlRelays();
-
-void updateDisplay();
-
-void printSerialStatus();
-
-void updateText(
-    int x,
-    int y,
-    String text,
-    uint16_t color
-);
-
-
-
-//==============================================================
+//====================================================
 // SETUP
-//==============================================================
+//====================================================
 
 void setup()
 {
-    Serial.begin(115200);
+  Serial.begin(115200);
 
-    dht.begin();
+  //==================================================
+  // DHT
+  //==================================================
 
-    pinMode(HUMIDIFIER_RELAY, OUTPUT);
-    pinMode(FAN_RELAY, OUTPUT);
-    pinMode(LIGHT_RELAY, OUTPUT);
-
-    // Turn OFF all relays (Active LOW)
-
-    digitalWrite(HUMIDIFIER_RELAY, HIGH);
-    digitalWrite(FAN_RELAY, HIGH);
-    digitalWrite(LIGHT_RELAY, HIGH);
-
-    initializeDisplay();
-
-    Serial.println();
-    Serial.println("=========================================");
-    Serial.println(" IoT Smart Temperature Control System");
-    Serial.println(" System Started Successfully");
-    Serial.println("=========================================");
-}
+  dht.begin();
 
 
+  //==================================================
+  // TFT INITIALIZATION
+  //==================================================
 
-//==============================================================
-// TFT INITIALIZATION
-//==============================================================
-
-void initializeDisplay()
-{
-    tft.initR(INITR_BLACKTAB);
-
-    tft.setRotation(1);
-
-    tft.fillScreen(ST77XX_BLACK);
-
-    // Header
-
-    tft.fillRect(0,0,160,18,ST77XX_BLUE);
-
-    tft.setTextColor(ST77XX_WHITE);
-
-    tft.setTextSize(1);
-
-    tft.setCursor(15,5);
-
-    tft.print("SMART ENVIRONMENT");
-
-
-
-    // Labels
-
-    tft.setTextColor(ST77XX_YELLOW);
-    tft.setCursor(5,25);
-    tft.print("Temp:");
-
-    tft.setTextColor(ST77XX_CYAN);
-    tft.setCursor(5,40);
-    tft.print("Humidity:");
-
-    tft.setTextColor(ST77XX_WHITE);
-
-    tft.setCursor(5,60);
-    tft.print("Humidifier:");
-
-    tft.setCursor(5,75);
-    tft.print("Fan:");
-
-    tft.setCursor(5,90);
-    tft.print("Light:");
-
-    tft.setCursor(5,110);
-    tft.print("Status:");
-}
-
-
-//==============================================================
-// DISPLAY HELPER
-//==============================================================
-
-void updateText(
-    int x,
-    int y,
-    String text,
-    uint16_t color
-)
-{
-    tft.fillRect(x,y,70,10,ST77XX_BLACK);
-
-    tft.setCursor(x,y);
-
-    tft.setTextColor(color);
-
-    tft.print(text);
-}
-
-
-/*
- * IoT Smart Temperature Control System
- * Version 1.0.0
- */
-#include <SPI.h>
-#include <DHT.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_ST7735.h>
-
-#define DHTPIN D4
-#define DHTTYPE DHT11
-
-#define HUMIDIFIER_RELAY D0
-#define FAN_RELAY D6
-#define LIGHT_RELAY D1
-
-#define TFT_CS D8
-#define TFT_DC D2
-#define TFT_RST -1
-
-const float TEMP_LOW=28.0;
-const float TEMP_HIGH=32.0;
-const float HUMIDITY_THRESHOLD=20.0;
-
-DHT dht(DHTPIN,DHTTYPE);
-Adafruit_ST7735 tft(TFT_CS,TFT_DC,TFT_RST);
-
-float temperature=0, humidity=0;
-bool bulbState=false, fanState=false, humidifierState=false;
-
-void updateText(int x,int y,String txt,uint16_t color){
-  tft.fillRect(x,y,70,10,ST77XX_BLACK);
-  tft.setCursor(x,y);
-  tft.setTextColor(color);
-  tft.print(txt);
-}
-
-void initializeDisplay(){
   tft.initR(INITR_BLACKTAB);
   tft.setRotation(1);
   tft.fillScreen(ST77XX_BLACK);
-  tft.fillRect(0,0,160,18,ST77XX_BLUE);
+
+
+  //==================================================
+  // IMPORTANT
+  //==================================================
+  //
+  // Configure relay pins AFTER TFT initialization.
+  //
+  // This is especially important for D6 because D6
+  // is also the ESP8266 hardware SPI MISO pin.
+  //
+  // The ST7735 does not need MISO for our display
+  // operations, so we can use D6 as the fan output.
+  //
+  //==================================================
+
+  pinMode(HUMIDIFIER_RELAY, OUTPUT);
+  pinMode(LIGHT_RELAY, OUTPUT);
+  pinMode(FAN_RELAY, OUTPUT);
+
+
+  //==================================================
+  // INITIAL RELAY STATES
+  //==================================================
+
+  // Bulb ON
+  digitalWrite(LIGHT_RELAY, LOW);
+
+  // Fan OFF
+  digitalWrite(FAN_RELAY, HIGH);
+
+  // Humidifier OFF
+  digitalWrite(HUMIDIFIER_RELAY, HIGH);
+
+
+  //==================================================
+  // TFT HEADER
+  //==================================================
+
+  tft.fillRect(0, 0, 160, 18, ST77XX_BLUE);
+
   tft.setTextColor(ST77XX_WHITE);
   tft.setTextSize(1);
-  tft.setCursor(15,5); tft.print("SMART ENVIRONMENT");
-  tft.setTextColor(ST77XX_YELLOW); tft.setCursor(5,25); tft.print("Temp:");
-  tft.setTextColor(ST77XX_CYAN); tft.setCursor(5,40); tft.print("Humidity:");
+
+  tft.setCursor(18, 5);
+  tft.print("SMART ENVIRONMENT");
+
+
+  //==================================================
+  // TFT STATIC LABELS
+  //==================================================
+
+  tft.setTextColor(ST77XX_YELLOW);
+  tft.setCursor(5, 25);
+  tft.print("Temp:");
+
+  tft.setTextColor(ST77XX_CYAN);
+  tft.setCursor(5, 40);
+  tft.print("Humidity:");
+
   tft.setTextColor(ST77XX_WHITE);
-  tft.setCursor(5,60); tft.print("Humidifier:");
-  tft.setCursor(5,75); tft.print("Fan:");
-  tft.setCursor(5,90); tft.print("Light:");
-  tft.setCursor(5,110); tft.print("Status:");
+
+  tft.setCursor(5, 60);
+  tft.print("Humidifier:");
+
+  tft.setCursor(5, 75);
+  tft.print("Fan:");
+
+  tft.setCursor(5, 90);
+  tft.print("Light:");
+
+  tft.setCursor(5, 110);
+  tft.print("Status:");
 }
 
-void readSensors(){
-  temperature=dht.readTemperature();
-  humidity=dht.readHumidity();
-}
 
-void controlRelays(){
-  if(temperature<TEMP_LOW) bulbState=true;
-  else if(temperature>TEMP_HIGH) bulbState=false;
+//====================================================
+// LOOP
+//====================================================
 
-  fanState=!bulbState;
-  humidifierState=(humidity<HUMIDITY_THRESHOLD);
+void loop()
+{
+  //==================================================
+  // READ DHT11
+  //==================================================
 
-  digitalWrite(LIGHT_RELAY, bulbState?LOW:HIGH);
-  digitalWrite(FAN_RELAY, fanState?LOW:HIGH);
-  digitalWrite(HUMIDIFIER_RELAY, humidifierState?LOW:HIGH);
-}
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
 
-void updateDisplay(){
-  updateText(85,25,String(temperature,1)+" C",ST77XX_YELLOW);
-  updateText(85,40,String(humidity,1)+" %",ST77XX_CYAN);
-  updateText(85,60,humidifierState?"ON":"OFF",humidifierState?ST77XX_GREEN:ST77XX_RED);
-  updateText(85,75,fanState?"ON":"OFF",fanState?ST77XX_GREEN:ST77XX_RED);
-  updateText(85,90,bulbState?"ON":"OFF",bulbState?ST77XX_YELLOW:ST77XX_RED);
-  updateText(85,110,humidifierState?"LOW HUM":"NORMAL",humidifierState?ST77XX_RED:ST77XX_GREEN);
-}
 
-void printSerialStatus(){
-  Serial.print("Temperature: ");Serial.print(temperature);Serial.print(" C  ");
-  Serial.print("Humidity: ");Serial.print(humidity);Serial.println(" %");
-  Serial.print("Light: ");Serial.println(bulbState?"ON":"OFF");
-  Serial.print("Fan: ");Serial.println(fanState?"ON":"OFF");
-  Serial.print("Humidifier: ");Serial.println(humidifierState?"ON":"OFF");
-  Serial.println("---------------------");
-}
+  //==================================================
+  // SENSOR ERROR
+  //==================================================
 
-void setup(){
-  Serial.begin(115200);
-  dht.begin();
-  pinMode(HUMIDIFIER_RELAY,OUTPUT);
-  pinMode(FAN_RELAY,OUTPUT);
-  pinMode(LIGHT_RELAY,OUTPUT);
-  digitalWrite(HUMIDIFIER_RELAY,HIGH);
-  digitalWrite(FAN_RELAY,HIGH);
-  digitalWrite(LIGHT_RELAY,HIGH);
-  initializeDisplay();
-}
+  if (isnan(temperature) || isnan(humidity))
+  {
+    Serial.println("Failed to read DHT11!");
 
-void loop(){
-  readSensors();
-  if(isnan(temperature)||isnan(humidity)){
-    updateText(85,25,"ERROR",ST77XX_RED);
+    tft.fillRect(85, 25, 70, 95, ST77XX_BLACK);
+
+    tft.setCursor(85, 25);
+    tft.setTextColor(ST77XX_RED);
+    tft.print("ERROR");
+
     delay(2000);
+
     return;
   }
-  controlRelays();
-  updateDisplay();
-  printSerialStatus();
+
+
+  //==================================================
+  // TEMPERATURE CONTROL
+  //==================================================
+
+  /*
+      BELOW 30°C
+      ----------------
+      Bulb ON
+      Fan OFF
+
+
+      ABOVE 33°C
+      ----------------
+      Bulb OFF
+      Fan ON
+
+
+      30°C - 33°C
+      ----------------
+      KEEP PREVIOUS STATE
+  */
+
+  if (temperature < 30.0)
+  {
+    bulbState = true;
+  }
+  else if (temperature > 33.0)
+  {
+    bulbState = false;
+  }
+
+
+  //==================================================
+  // APPLY BULB + FAN STATE
+  //==================================================
+
+  if (bulbState)
+  {
+    // Bulb ON
+    digitalWrite(LIGHT_RELAY, LOW);
+
+    // Fan OFF
+    digitalWrite(FAN_RELAY, HIGH);
+  }
+  else
+  {
+    // Bulb OFF
+    digitalWrite(LIGHT_RELAY, HIGH);
+
+    // Fan ON
+    digitalWrite(FAN_RELAY, LOW);
+  }
+
+
+  //==================================================
+  // HUMIDIFIER CONTROL
+  //==================================================
+
+  if (humidity < 50.0)
+  {
+    humidifierState = true;
+  }
+  else if (humidity > 80.0)
+  {
+    humidifierState = false;
+  }
+
+
+  //==================================================
+  // APPLY HUMIDIFIER STATE
+  //==================================================
+
+  if (humidifierState)
+  {
+    digitalWrite(HUMIDIFIER_RELAY, LOW);
+  }
+  else
+  {
+    digitalWrite(HUMIDIFIER_RELAY, HIGH);
+  }
+
+
+  //==================================================
+  // TFT TEMPERATURE
+  //==================================================
+
+  tft.fillRect(85, 25, 70, 10, ST77XX_BLACK);
+
+  tft.setCursor(85, 25);
+  tft.setTextColor(ST77XX_YELLOW);
+
+  tft.print(temperature, 1);
+  tft.print(" C");
+
+
+  //==================================================
+  // TFT HUMIDITY
+  //==================================================
+
+  tft.fillRect(85, 40, 70, 10, ST77XX_BLACK);
+
+  tft.setCursor(85, 40);
+  tft.setTextColor(ST77XX_CYAN);
+
+  tft.print(humidity, 1);
+  tft.print(" %");
+
+
+  //==================================================
+  // TFT HUMIDIFIER
+  //==================================================
+
+  tft.fillRect(85, 60, 70, 10, ST77XX_BLACK);
+
+  tft.setCursor(85, 60);
+
+  if (humidifierState)
+  {
+    tft.setTextColor(ST77XX_GREEN);
+    tft.print("ON");
+  }
+  else
+  {
+    tft.setTextColor(ST77XX_RED);
+    tft.print("OFF");
+  }
+
+
+  //==================================================
+  // TFT FAN
+  //==================================================
+
+  tft.fillRect(85, 75, 70, 10, ST77XX_BLACK);
+
+  tft.setCursor(85, 75);
+
+  if (bulbState)
+  {
+    // Bulb ON → Fan OFF
+    tft.setTextColor(ST77XX_RED);
+    tft.print("OFF");
+  }
+  else
+  {
+    // Bulb OFF → Fan ON
+    tft.setTextColor(ST77XX_GREEN);
+    tft.print("ON");
+  }
+
+
+  //==================================================
+  // TFT LIGHT
+  //==================================================
+
+  tft.fillRect(85, 90, 70, 10, ST77XX_BLACK);
+
+  tft.setCursor(85, 90);
+
+  if (bulbState)
+  {
+    // Bulb ON
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.print("ON");
+  }
+  else
+  {
+    // Bulb OFF
+    tft.setTextColor(ST77XX_RED);
+    tft.print("OFF");
+  }
+
+
+  //==================================================
+  // TFT HUMIDITY STATUS
+  //==================================================
+
+  tft.fillRect(85, 110, 70, 10, ST77XX_BLACK);
+
+  tft.setCursor(85, 110);
+
+  if (humidity > 80.0)
+  {
+    tft.setTextColor(ST77XX_RED);
+    tft.print("HIGH HUM");
+  }
+  else if (humidity > 50.0)
+  {
+    tft.setTextColor(ST77XX_GREEN);
+    tft.print("NORMAL");
+  }
+  else
+  {
+    tft.setTextColor(ST77XX_RED);
+    tft.print("LOW HUM");
+  }
+
+
+  //==================================================
+  // SERIAL MONITOR
+  //==================================================
+
+  Serial.print("Temperature: ");
+  Serial.print(temperature, 1);
+
+  Serial.print(" C   Humidity: ");
+  Serial.print(humidity, 1);
+  Serial.print("%   ");
+
+  Serial.print("Humidifier: ");
+  Serial.print(humidifierState ? "ON" : "OFF");
+
+  Serial.print("   Fan: ");
+  Serial.print(bulbState ? "OFF" : "ON");
+
+  Serial.print("   Bulb: ");
+  Serial.println(bulbState ? "ON" : "OFF");
+
+
+  //==================================================
+  // WAIT
+  //==================================================
+
   delay(1000);
 }
