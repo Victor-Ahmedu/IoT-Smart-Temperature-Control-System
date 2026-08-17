@@ -1,3 +1,9 @@
+<img width="3072" height="4080" alt="IMG_20260817_152812" src="https://github.com/user-attachments/assets/4491c95f-cad9-480e-9532-4fc0354eae86" />
+<img width="3072" height="4078" alt="IMG_20260817_155939" src="https://github.com/user-attachments/assets/aac4d0e7-4372-4767-91f9-054c0acc96cb" />
+
+
+
+
 # 🌡️ IoT Smart Temperature Control System
 
 An IoT-based smart environment monitoring and control system built with the **NodeMCU ESP8266**, **DHT11 sensor**, **ST7735 TFT display**, and **relay modules**. The system continuously monitors ambient temperature and humidity and automatically controls a **light**, **fan**, and **humidifier** to maintain a comfortable indoor environment.
